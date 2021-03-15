@@ -72,21 +72,57 @@ MAX_SENDQ_SIZE = 100000
 MAX_READQ_SIZE = 1000000
 PROM_PORT_NUMBER = 6320
 TS_MAX_INTERVAL = 120000
+MAX_GAUGE_BUFFER_SIZE = 1024 ** 3 # The max size bytes of the Prometheus buffer
 
 class CustomCollector(object):
     def __init__(self):
         self.gauges = []
+        self.buffer_size = 0
+        self.last_add_time = 0
+
+    def check_entries(self):
+        cur_buffer_size = sys.getsizeof(self.gauges)
+        if cur_buffer_size > 0.7 * MAX_GAUGE_BUFFER_SIZE:
+            LOG.warn('The Prometheus buffer has used {} percent. Please check the '
+                     'Consul and Prometheus config.'.format((float(cur_buffer_size)/ MAX_GAUGE_BUFFER_SIZE)))
+        if cur_buffer_size > MAX_GAUGE_BUFFER_SIZE:
+            size = len(self.gauges) / 2
+            self.gauges = self.gauges[size:]
+            LOG.error("The buffer size has reached the threshold. Remove the first half part metrics.")
+        self.buffer_size = sys.getsizeof(self.gauges)
 
     def add_metric(self, metric_entry):
-        return self.gauges.append(metric_entry)
+        self.gauges.append(metric_entry)
+        self.check_entries()
+        self.last_add_time = int(time.time())
+
+    def get_tcollector_metrics(self):
+        # Also push the buffer_size, entry num and last add time to Prometheus.
+
+        return [{
+            "metric": "tcollecor_buffer_size",
+            "value": self.buffer_size
+        }, {
+            "metric": "tcollecor_last_add_time",
+            "value": self.last_add_time
+        },{
+            "metric": "tcollecor_entry_num",
+            "value": len(self.gauges)
+        }]
 
     def collect(self):
         try:
             LOG.info("Collecting by Prometheus")
-            self.gauges, gauge_copy = [], self.gauges
+            tcollector_metrics = self.get_tcollector_metrics()
+            self.gauges, self.add_times, self.buffer_size, gauge_copy = [], 0, 0, self.gauges
+            gauge_copy.extend(tcollector_metrics)
+
             # Interate thru copy dict to yield data to Prometheus request
             for metric_entry in gauge_copy:
-                labels, label_values = zip(*metric_entry["tags"].items())
+                tags_dict = metric_entry.get("tags", {})
+                labels, label_values = [], []
+                if tags_dict:
+                    labels, label_values = zip(*tags_dict.items())
                 gmf = GaugeMetricFamily(metric_entry["metric"], metric_entry["metric"], labels=labels)
                 gmf.add_metric(labels=label_values, value=metric_entry["value"])
                 yield gmf
