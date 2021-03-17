@@ -105,11 +105,8 @@ class CustomCollector(object):
 
         # Remove the first half metrics in the dict
         if cur_buffer_size > MAX_GAUGE_BUFFER_SIZE:
-            size = len(self.gauges) / 2
-            for key in self.gauges.keys()[size:]:
-                del self.gauges[key]
-            self.gauges = self.gauges.copy()
-            LOG.error("The buffer size has reached the threshold. Remove the first half part metrics.")
+            self.gauges.clear()
+            LOG.error("The buffer size has reached the threshold. Remove all of the metrics.")
         self.buffer_size = sys.getsizeof(self.gauges)
 
     def add_metric(self, metric_entry, check_entry=True):
