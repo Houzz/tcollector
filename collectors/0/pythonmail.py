@@ -48,24 +48,24 @@ def main():
         ts = time.time()
         ts_int = int(ts)
         email_ts = str(ts).split('.')[0]
-        print(email_ts)
+        #print(email_ts)
         mail_to = email_ts + '@houzz.com'
-        print('***Sending email to test user!***')
+        #print('***Sending email to test user!***')
         mail_cmd = 'echo \'This is a test\' | mail -s \"Sending test email.\" ' + mail_to
-        print(mail_cmd)
+        #print(mail_cmd)
         subprocess.run(mail_cmd, shell=True)
         time.sleep(15)
-        print('***Check if mail is sent!***')
+        #print('***Check if mail is sent!***')
         if search_word_in_file(mail_to, log_file):
-            print('Mail sent successfully!')
-            print('Log found in /var/log/mail.log!')
+            #print('Mail sent successfully!')
+            #print('Log found in /var/log/mail.log!')
             print ("mail_cmd_failure %d %s" % (ts_int, 0))
         elif search_word_in_file(mail_to, log_file_1):
-            print('Mail sent successfully!')
-            print('Log found in /var/log/mail.log.1!')
+            #print('Mail sent successfully!')
+            #print('Log found in /var/log/mail.log.1!')
             print ("mail_cmd_failure %d %s" % (ts_int, 0))
         else:
-            print('Failed to send the mail!')
+            #print('Failed to send the mail!')
             print ("mail_cmd_failure %d %s" % (ts_int, 1))
 
         sys.stdout.flush()
